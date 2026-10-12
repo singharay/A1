@@ -1,0 +1,49 @@
+name: Daily India Geopolitical Sector Monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 02:30 UTC = 08:00 Asia/Kolkata. GitHub scheduled jobs may start late.
+    - cron: "30 2 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  build-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate daily report
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_MODEL: ${{ vars.CLAUDE_MODEL }}
+          MAX_SEARCHES: ${{ vars.MAX_SEARCHES }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python main.py
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: india-geopolitical-sector-report-${{ github.run_id }}
+          path: reports/*.md
+          if-no-files-found: error
+          retention-days: 30
